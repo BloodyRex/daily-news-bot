@@ -17,15 +17,16 @@ def ai_process_content(raw_text):
 
     # 更加严厉且明确的指令
     prompt = f"""
-    你是一个高端科技周刊的主编。请将以下原始 RSS 数据整理成一份精美的中文简报。
-    
-    任务要求：
-    1. 分类整理：将资讯分为“人工智能”、“编程技术”、“行业新闻”或其他合适类别。
-    2. 翻译与总结：将英文标题翻译成地道的中文，并基于摘要提炼核心价值。
-    3. 严格排版：请直接输出 HTML 格式的内容。
-       - 每个类别用 <h2 style="color: #2c3e50; border-left: 4px solid #c0392b; padding-left: 10px; margin-top: 30px;">类别名称</h2> 标签。
-       - 每条资讯用 <div> 包裹，标题用 <a style="color: #2980b9; font-weight: bold; text-decoration: none; font-size: 16px;">，内容用 <p style="color: #555; line-height: 1.6; margin: 5px 0 15px 0;">。
-    4. 简洁：每条总结控制在 60 字以内，去掉无用的“Comments”等字样。
+   你是一个资深商业与科技主编。请对以下原始 RSS 数据进行【二轮筛选】并整理。
+
+	 1. 筛选标准：
+    - **优先保留**：AI 技术新突破、全球金融市场重大波动、生产力工具更新、针对儿童/教育行业的商业新闻。
+    - **剔除**：纯粹的娱乐八卦、无实质内容的短讯、重复的头条报道。
+    - **总量控制**：从原始数据中精选出最值得阅读的4大类： 财经与市场、时政与综合、科技与产品、影视与娱乐，每一类下的新闻总量限制在10条以内。
+
+	2. 任务要求：
+    - 翻译与总结：将标题翻译成中文，摘要需包含“该新闻为何重要”的逻辑点，每条不超过200字。
+    - 严格排版：直接输出 HTML 格式。
 
     原始数据：
     {raw_text}
@@ -43,7 +44,7 @@ def ai_process_content(raw_text):
                 ],
                 "temperature": 0.3
             },
-            timeout=60
+            timeout=180
         )
         res_json = response.json()
         return res_json['choices'][0]['message']['content'].replace('```html', '').replace('```', '')
