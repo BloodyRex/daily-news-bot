@@ -1,0 +1,5 @@
+# Add your RSS feed URLs here (one per line)
+# Example feeds:
+https://news.ycombinator.com/rss
+https://www.reddit.com/r/python/.rss
+https://www.nasa.gov/rss/dyn/breaking_news.rss
