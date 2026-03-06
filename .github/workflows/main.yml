@@ -1,5 +1,6 @@
-  name: Daily RSS Email Newsletter                                                                                         
-                                                                                                                             on:                                                                                                                      
+  name: Daily RSS Email Newsletter
+
+on:                                                                                                                      
     schedule:                                                                                                              
       # Run daily at 9:00 AM Beijing Time (UTC+8) = 1:00 AM UTC
       # Cron format: minute hour day month day-of-week
