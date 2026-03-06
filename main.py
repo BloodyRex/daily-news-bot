@@ -63,7 +63,7 @@ def fetch_data(feeds):
                 pub_parsed = getattr(entry, 'published_parsed', None) or getattr(entry, 'updated_parsed', None)
                 if pub_parsed:
                     pub_date = datetime(*pub_parsed[:6], tzinfo=timezone.utc)
-                    if (now - pub_date) < timedelta(days=1):
+                    if (now - pub_date) < timedelta(days=7):
                         title = entry.title
                         # 过滤掉几乎没有内容的摘要
                         summary = entry.get('summary', '')
