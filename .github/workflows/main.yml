@@ -9,7 +9,7 @@ on:
     # Allow manual trigger
     workflow_dispatch:
 
-  jobs:
+jobs:
     send-newsletter:
       runs-on: ubuntu-latest
 
