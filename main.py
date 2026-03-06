@@ -5,25 +5,30 @@ import resend
 import requests
 from datetime import datetime, timezone, timedelta
 
-# 配置环境变量
+# 配置
 resend.api_key = os.environ.get("RESEND_API_KEY")
 receiver_email = os.environ.get("RECEIVER_EMAIL")
 deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
 
-def ai_summarize(content_list):
-    """调用 DeepSeek API 进行批量翻译和摘要"""
-    if not deepseek_key or not content_list:
-        return content_list
+def ai_process_content(raw_text):
+    """请求 DeepSeek 进行翻译、分类、总结并直接生成 HTML 块"""
+    if not deepseek_key or not raw_text.strip():
+        return "<p>暂无深度资讯总结。</p>"
 
+    # 更加严厉且明确的指令
     prompt = f"""
-    你是一个专业的资讯简报编辑。请将以下 RSS 资讯条目翻译成中文，并进行分类整理。
-    要求：
-    1. 标题要准确、吸引人。
-    2. 摘要请提炼核心观点，每条控制在 50-80 字左右。
-    3. 风格简洁、专业，适合快速阅读。
+    你是一个高端科技周刊的主编。请将以下原始 RSS 数据整理成一份精美的中文简报。
     
-    待处理资讯：
-    {content_list}
+    任务要求：
+    1. 分类整理：将资讯分为“人工智能”、“编程技术”、“行业新闻”或其他合适类别。
+    2. 翻译与总结：将英文标题翻译成地道的中文，并基于摘要提炼核心价值。
+    3. 严格排版：请直接输出 HTML 格式的内容。
+       - 每个类别用 <h2 style="color: #2c3e50; border-left: 4px solid #c0392b; padding-left: 10px; margin-top: 30px;">类别名称</h2> 标签。
+       - 每条资讯用 <div> 包裹，标题用 <a style="color: #2980b9; font-weight: bold; text-decoration: none; font-size: 16px;">，内容用 <p style="color: #555; line-height: 1.6; margin: 5px 0 15px 0;">。
+    4. 简洁：每条总结控制在 60 字以内，去掉无用的“Comments”等字样。
+
+    原始数据：
+    {raw_text}
     """
 
     try:
@@ -32,22 +37,25 @@ def ai_summarize(content_list):
             headers={"Authorization": f"Bearer {deepseek_key}", "Content-Type": "application/json"},
             json={
                 "model": "deepseek-chat",
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": [
+                    {"role": "system", "content": "你是一个只会输出 HTML 格式正文的助手。"},
+                    {"role": "user", "content": prompt}
+                ],
                 "temperature": 0.3
             },
-            timeout=30
+            timeout=60
         )
-        return response.json()['choices'][0]['message']['content']
+        res_json = response.json()
+        return res_json['choices'][0]['message']['content'].replace('```html', '').replace('```', '')
     except Exception as e:
-        print(f"AI 总结出错: {e}")
-        return "AI 总结暂时不可用，请查看原文链接。"
+        print(f"DeepSeek 报错: {e}")
+        return f"<p>AI 整理失败，请检查 API Key 或网络。错误详情: {e}</p>"
 
-def fetch_and_build_html(feeds):
+def fetch_data(feeds):
     now = datetime.now(timezone.utc)
-    all_news_text = "" # 用于发给 AI 处理的文本
-    entries_data = []  # 存储带链接的数据
+    raw_text = ""
+    valid_count = 0
 
-    # 1. 抓取并筛选数据
     for url in feeds:
         try:
             feed = feedparser.parse(url)
@@ -57,69 +65,64 @@ def fetch_and_build_html(feeds):
                     pub_date = datetime(*pub_parsed[:6], tzinfo=timezone.utc)
                     if (now - pub_date) < timedelta(days=1):
                         title = entry.title
-                        link = entry.link
-                        summary = entry.get('summary', '')[:200]
-                        all_news_text += f"标题: {title}\n摘要: {summary}\n---\n"
-                        entries_data.append({"title": title, "link": link})
+                        # 过滤掉几乎没有内容的摘要
+                        summary = entry.get('summary', '')
+                        if len(summary) < 20: summary = "（查看原文了解详情）"
+                        
+                        raw_text += f"Source: {feed.feed.get('title', 'News')}\nTitle: {title}\nLink: {entry.link}\nSummary: {summary}\n---\n"
+                        valid_count += 1
         except Exception as e:
-            print(f"解析错误 {url}: {e}")
-
-    if not entries_data:
-        return None
-
-    # 2. 调用 DeepSeek 进行翻译和总结
-    print("正在请求 DeepSeek AI 进行智能整理...")
-    ai_content = ai_summarize(all_news_text)
-
-    # 3. 构建 HTML 模板
-    html = f"""
-    <div style="background-color: #f6f8fa; padding: 30px; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
-            <div style="border-bottom: 2px solid #eaecef; padding-bottom: 20px; margin-bottom: 30px; text-align: center;">
-                <h1 style="margin: 0; color: #1f2328; font-size: 24px;">Rex's Intelligence Feed</h1>
-                <p style="color: #57606a; font-size: 14px; margin-top: 10px;">{datetime.now().strftime('%Y年%m月%d日')} | AI 驱动的深度简报</p>
-            </div>
+            print(f"抓取失败 {url}: {e}")
             
-            <div style="line-height: 1.8; color: #24292f; white-space: pre-wrap; font-size: 15px;">
-{ai_content}
-            </div>
-
-            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eaecef;">
-                <p style="font-size: 13px; color: #8c959f; text-align: center; font-style: italic;">
-                    资讯来源：{len(feeds)} 个订阅源 | 整理者：DeepSeek AI
-                </p>
-            </div>
-        </div>
-    </div>
-    """
-    return html
+    return raw_text, valid_count
 
 def main():
-    print("Newsletter Bot (AI版) 开始运行...")
+    print("🚀 开始执行 AI 汉化简报任务...")
+    
+    if not all([resend.api_key, receiver_email, deepseek_key]):
+        print("❌ 错误: 环境变量 (RESEND/RECEIVER/DEEPSEEK) 配置不全")
+        return
+
+    # 读取源
     feeds = []
     if os.path.exists("feeds.txt"):
         with open("feeds.txt", "r") as f:
-            feeds = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+            feeds = [l.strip() for l in f if l.strip() and not l.startswith("#")]
 
-    if not feeds:
-        print("没有可抓取的源。")
-        return
-
-    email_body = fetch_and_build_html(feeds)
-
-    if email_body:
+    raw_data, count = fetch_data(feeds)
+    
+    if count > 0:
+        # 让 AI 处理内容
+        formatted_content = ai_process_content(raw_data)
+        
+        # 组装最终邮件
+        full_html = f"""
+        <div style="background-color: #f9f9f9; padding: 20px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+            <div style="max-width: 650px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                <div style="text-align: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 20px; margin-bottom: 20px;">
+                    <h1 style="margin: 0; color: #333; font-size: 22px;">Rex's Daily Intelligence</h1>
+                    <p style="color: #999; font-size: 13px;">{datetime.now().strftime('%Y-%m-%d')} | AI 深度整理版</p>
+                </div>
+                {formatted_content}
+                <div style="text-align: center; margin-top: 40px; color: #ccc; font-size: 11px; border-top: 1px solid #f0f0f0; padding-top: 20px;">
+                    由 DeepSeek V3 驱动 | Rex 的自动化工作流
+                </div>
+            </div>
+        </div>
+        """
+        
         try:
             resend.Emails.send({
-                "from": "Rex News <onboarding@resend.dev>",
+                "from": "Newsletter <onboarding@resend.dev>",
                 "to": [receiver_email],
-                "subject": f"AI 简报：{datetime.now().strftime('%m/%d')} 行业动态总结",
-                "html": email_body
+                "subject": f"今日深度简报：{count} 条资讯 AI 总结",
+                "html": full_html
             })
-            print("✅ AI 中文简报已发送！")
+            print(f"✅ 成功！已发送 {count} 条资讯的总结。")
         except Exception as e:
-            print(f"❌ 发送失败: {e}")
+            print(f"邮件发送失败: {e}")
     else:
-        print("⚠️ 过去 24 小时内无更新。")
+        print("今日无新资讯更新。")
 
 if __name__ == "__main__":
     main()
