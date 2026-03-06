@@ -1,41 +1,25 @@
-# Add your RSS feed URLs here (one per line)
-# Example feeds:
-📈 财经与市场
-华尔街日报 (市场): https://feeds.a.dj.com/rss/RSSMarketsMain.xml
+# 📈 财经与市场
+https://feeds.a.dj.com/rss/RSSMarketsMain.xml
+http://feeds.reuters.com/reuters/businessNews
+https://seekingalpha.com/feed.xml
+https://rsshub.app/caixinglobal/latest
+https://rsshub.app/economist/latest
 
-路透社 (商业): http://feeds.reuters.com/reuters/businessNews
+# 🌍 时政与综合
+https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml
+https://www.zaobao.com.sg/rss/zworld
+https://rsshub.app/apnews/topics/apf-topnews
 
-Seeking Alpha (美股分析): https://seekingalpha.com/feed.xml
+# 💻 科技与产品
+https://techcrunch.com/feed/
+https://www.theverge.com/rss/index.xml
+https://hnrss.org/frontpage
+https://sspai.com/feed
+https://www.technologyreview.com/feed/
+http://export.arxiv.org/rss/cs.AI
 
-财新网 (全球动态): https://rsshub.app/caixinglobal/latest
-
-经济学人 (精选): https://rsshub.app/economist/latest
-
-🌍 时政与综合
-纽约时报 (要闻): https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml
-
-联合早报 (全球): https://www.zaobao.com.sg/rss/zworld
-
-美联社 (热点): https://rsshub.app/apnews/topics/apf-topnews
-
-💻 科技与产品
-TechCrunch (创业): https://techcrunch.com/feed/
-
-The Verge (综合科技): https://www.theverge.com/rss/index.xml
-
-Hacker News (极客热点): https://hnrss.org/frontpage
-
-少数派 (效率/工具): https://sspai.com/feed
-
-MIT 科技评论: https://www.technologyreview.com/feed/
-
-Arxiv (AI 论文): http://export.arxiv.org/rss/cs.AI
-
-🎬 影视与娱乐
-豆瓣 (一周口碑榜): https://rsshub.app/douban/movie/weekly
-
-Netflix (最新上线): https://rsshub.app/netflix/latest/zh
-
-烂番茄 (热门剧集): https://www.rottentomatoes.com/syndication/rss/tv.xml
-
-Polygon (影视/游戏评论): https://www.polygon.com/rss/entertainment/index.xml
+# 🎬 影视与娱乐
+https://rsshub.app/douban/movie/weekly
+https://rsshub.app/netflix/latest/zh
+https://www.rottentomatoes.com/syndication/rss/tv.xml
+https://www.polygon.com/rss/entertainment/index.xml
