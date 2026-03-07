@@ -2,9 +2,9 @@ name: Daily News Email
 
 on:                                                                                             
     schedule:                                                                                                              
-      # Run daily at 9:00 AM Beijing Time (UTC+8) = 1:00 AM UTC
+      # Run daily at 8:23 AM Beijing Time (UTC+8) = 00:23 AM UTC
       # Cron format: minute hour day month day-of-week
-      - cron: '0 1 * * *'
+      - cron: '23 0 * * *'
 
     # Allow manual trigger
     workflow_dispatch:
