@@ -1,22 +1,28 @@
-#💰 财经与市场
+# 💰 财经与市场
 https://stratechery.com/feed/
+https://rsshub.app/pcr/next-iois
 https://sv101.fireside.fm/rss
 
-#🌍 时政与综合
-# YouTube 需要转换 (以 RSSHub 为例)
+# 🌍 时政与综合
+# YouTube 频道转换
 https://rsshub.app/youtube/channel/UCiwt1aanVMoPYUt_CQYCPQg
+# Matters 平台
 https://matters.news/rss
-# Twitter 需要转换 (建议使用稳定源)
+# Twitter/X 用户动态转换
 https://rsshub.app/twitter/user/gttnnn
 
-#💻 科技与产品
-# Telegram 频道建议通过 RSSHub 转换
+# 💻 科技与产品
+# Telegram 频道转换
 https://rsshub.app/telegram/channel/isaiahsystem
 https://rsshub.app/telegram/channel/solidot
+# 个人博客与网站
 http://www.ruanyifeng.com/blog/atom.xml
 https://www.runningcheese.com/feed
 https://kenengba.com/feed
 https://news.ycombinator.com/rss
 https://sspai.com/feed
-# B站动态转换
+# Bilibili 动态转换
 https://rsshub.app/bilibili/user/dynamic/9458053
+# 其他
+https://newshacker.me/feed/
+https://rsshub.app/telegram/channel/weekly_books
