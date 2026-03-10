@@ -112,12 +112,12 @@ def main():
     """
 
     try:
-        resend.Emails.send({{
+        resend.Emails.send({
             "from": "Insight <onboarding@resend.dev>",
             "to": [receiver_email],
             "subject": f"【投研】{datetime.now().strftime('%m-%d')} 复盘内参",
             "html": html_template
-        }})
+        })
         print("✅ 成功！")
     except Exception as e:
         print(f"❌ 失败: {e}")
