@@ -1,21 +1,22 @@
 #💰 财经与市场
-https://stratechery.com
-https://next.iois.me/author/zhaosaipo
-https://sv101.fireside.fm
+https://stratechery.com/feed/
+https://sv101.fireside.fm/rss
 
 #🌍 时政与综合
-https://www.youtube.com/channel/UCiwt1aanVMoPYUt_CQYCPQg
-https://matters.news
-https://twitter.com/gttnnn
+# YouTube 需要转换 (以 RSSHub 为例)
+https://rsshub.app/youtube/channel/UCiwt1aanVMoPYUt_CQYCPQg
+https://matters.news/rss
+# Twitter 需要转换 (建议使用稳定源)
+https://rsshub.app/twitter/user/gttnnn
 
 #💻 科技与产品
-https://t.me/isaiahsystem
-https://t.me/solidot
-http://www.ruanyifeng.com
-https://www.runningcheese.com
-https://kenengba.com
-https://news.ycombinator.com
-https://sspai.com
-https://space.bilibili.com/9458053
-https://newshacker.me
-https://t.me/weekly_books
+# Telegram 频道建议通过 RSSHub 转换
+https://rsshub.app/telegram/channel/isaiahsystem
+https://rsshub.app/telegram/channel/solidot
+http://www.ruanyifeng.com/blog/atom.xml
+https://www.runningcheese.com/feed
+https://kenengba.com/feed
+https://news.ycombinator.com/rss
+https://sspai.com/feed
+# B站动态转换
+https://rsshub.app/bilibili/user/dynamic/9458053
