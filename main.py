@@ -123,4 +123,44 @@ def ai_analyze(stock_intel, rss_info):
 
 def main():
     print("🚀 启动自动化投研任务...")
-    if not all([resend.api_
+    # 检查环境变量是否齐全
+    if not all([resend.api_key, receiver_email, deepseek_key]):
+        print("❌ 环境变量配置不完整，请检查 GitHub Secrets (RESEND_API_KEY, RECEIVER_EMAIL, DEEPSEEK_API_KEY)")
+        return
+
+    # 1. 抓取数据
+    print("📊 正在抓取个股技术面与消息面...")
+    stock_intel = get_stock_intel()
+    
+    print("🌐 正在读取 RSS 订阅源...")
+    rss_info = get_rss_content()
+    
+    # 2. AI 分析
+    print("🧠 正在请求 DeepSeek 进行深度分析...")
+    final_content = ai_analyze(stock_intel, rss_info)
+    
+    # 3. 发送邮件
+    print("📧 正在组装并发送邮件...")
+    try:
+        resend.Emails.send({
+            "from": "StockExpert <onboarding@resend.dev>",
+            "to": [receiver_email],
+            "subject": f"【投研内参】{datetime.now().strftime('%m-%d')} 技术+消息深度复盘",
+            "html": f"""
+            <div style="background-color: #f4f7f9; padding: 20px; font-family: sans-serif;">
+                <div style="max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                    {final_content}
+                    <hr style="border:none; border-top:1px solid #eee; margin-top:30px;">
+                    <p style="font-size:12px; color:#999; text-align:center;">
+                        数据驱动投资 | GitHub Actions 自动运行报告
+                    </p>
+                </div>
+            </div>
+            """
+        })
+        print("✅ 研报已成功发送至邮箱！")
+    except Exception as e:
+        print(f"❌ 邮件发送环节出错: {e}")
+
+if __name__ == "__main__":
+    main()
