@@ -17,31 +17,33 @@ TARGET_STOCKS = {
 }
 
 def get_technical_analysis(code):
-    """抓取历史数据并计算简单的技术指标"""
     try:
-        # 获取近60个交易日的日K线
         df = ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq").tail(60)
-        curr_price = df.iloc[-1]['收盘']
+        if len(df) < 20: return "数据量不足，无法进行技术分析"
         
-        # 计算均线
+        curr_price = df.iloc[-1]['收盘']
         ma5 = df['收盘'].rolling(5).mean().iloc[-1]
         ma20 = df['收盘'].rolling(20).mean().iloc[-1]
         
-        # 简单计算RSI(6)
+        # 更加稳健的 RSI 计算
         delta = df['收盘'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=6).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=6).mean()
-        rs = gain / loss
-        rsi6 = 100 - (100 / (1 + rs.iloc[-1]))
         
-        tech_str = f"现价:{curr_price}, MA5:{round(ma5,2)}, MA20:{round(ma20,2)}, RSI6:{round(rsi6,2)}"
-        # 判断形态
-        trend = "多头排列" if ma5 > ma20 else "空头震荡"
-        strength = "超买" if rsi6 > 80 else ("超跌" if rsi6 < 20 else "中性")
+        # 防止除以 0 的情况
+        last_loss = loss.iloc[-1]
+        if last_loss == 0:
+            rsi6 = 100
+        else:
+            rs = gain.iloc[-1] / last_loss
+            rsi6 = 100 - (100 / (1 + rs))
+            
+        trend = "📈 多头排列" if ma5 > ma20 else "📉 空头震荡"
+        strength = "🔥 超买" if rsi6 > 80 else ("❄️ 超跌" if rsi6 < 20 else "⚖️ 中性")
         
-        return f"{tech_str} (形态:{trend}, 强度:{strength})"
-    except:
-        return "技术面数据获取失败"
+        return f"现价:{curr_price}, MA5:{round(ma5,2)}, MA20:{round(ma20,2)}, RSI6:{round(rsi6,2)} ({trend}, {strength})"
+    except Exception as e:
+        return f"技术面分析暂不可用: {str(e)}"
 
 def get_stock_intel():
     """获取股票新闻+技术面综合信息"""
