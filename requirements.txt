@@ -1,2 +1,5 @@
-feedparser==6.0.11
+akshare==1.13.92
+pandas==2.2.1
 requests==2.32.3
+resend==0.6.0
+feedparser==6.0.11

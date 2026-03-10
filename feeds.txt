@@ -1,25 +1,21 @@
-# 📈 财经与市场
-https://feeds.a.dj.com/rss/RSSMarketsMain.xml
-http://feeds.reuters.com/reuters/businessNews
-https://seekingalpha.com/feed.xml
-https://rsshub.app/caixinglobal/latest
-https://rsshub.app/economist/latest
+#💰 财经与市场
+https://stratechery.com
+https://next.iois.me/author/zhaosaipo
+https://sv101.fireside.fm
 
-# 🌍 时政与综合
-https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml
-https://www.zaobao.com.sg/rss/zworld
-https://rsshub.app/apnews/topics/apf-topnews
+#🌍 时政与综合
+https://www.youtube.com/channel/UCiwt1aanVMoPYUt_CQYCPQg
+https://matters.news
+https://twitter.com/gttnnn
 
-# 💻 科技与产品
-https://techcrunch.com/feed/
-https://www.theverge.com/rss/index.xml
-https://hnrss.org/frontpage
-https://sspai.com/feed
-https://www.technologyreview.com/feed/
-http://export.arxiv.org/rss/cs.AI
-
-# 🎬 影视与娱乐
-https://rsshub.app/douban/movie/weekly
-https://rsshub.app/netflix/latest/zh
-https://www.rottentomatoes.com/syndication/rss/tv.xml
-https://www.polygon.com/rss/entertainment/index.xml
+#💻 科技与产品
+https://t.me/isaiahsystem
+https://t.me/solidot
+http://www.ruanyifeng.com
+https://www.runningcheese.com
+https://kenengba.com
+https://news.ycombinator.com
+https://sspai.com
+https://space.bilibili.com/9458053
+https://newshacker.me
+https://t.me/weekly_books

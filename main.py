@@ -1,129 +1,100 @@
-#!/usr/bin/env python3
 import os
+import akshare as ak
+import pandas as pd
 import feedparser
 import resend
 import requests
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 
-# 配置
+# 配置环境变量
 resend.api_key = os.environ.get("RESEND_API_KEY")
 receiver_email = os.environ.get("RECEIVER_EMAIL")
 deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
 
-def ai_process_content(raw_text):
-    """请求 DeepSeek 进行翻译、分类、总结并直接生成 HTML 块"""
-    if not deepseek_key or not raw_text.strip():
-        return "<p>暂无深度资讯总结。</p>"
+# 特定关注标的
+TARGET_STOCKS = {
+    "603966": {"name": "法兰泰克", "ref_price": 13.79, "ref_type": "国资转让价"},
+    "002475": {"name": "立讯精密", "ref_price": 50.14, "ref_type": "回购均价下限"}
+}
 
-    # 更加严厉且明确的指令
+def get_stock_data():
+    """获取特定股票行情与48h新闻"""
+    print("Fetching stock data...")
+    stock_report = ""
+    df_spot = ak.stock_zh_a_spot_em()
+    
+    for code, info in TARGET_STOCKS.items():
+        # 行情分析
+        row = df_spot[df_spot['代码'] == code].iloc[0]
+        curr_p = row['最新价']
+        offset = round(((curr_p - info['ref_price']) / info['ref_price']) * 100, 2)
+        
+        # 48h新闻
+        df_news = ak.stock_news_em(symbol=code)
+        df_news['发布时间'] = pd.to_datetime(df_news['发布时间'])
+        recent = df_news[df_news['发布时间'] >= (datetime.now() - timedelta(hours=48))]
+        news_str = "\n".join([f"- {r['新闻标题']}" for _, r in recent.iterrows()])
+        
+        stock_report += f"【{info['name']}】现价:{curr_p}, 基准:{info['ref_price']}, 偏离:{offset}%\n最新动态:\n{news_str}\n\n"
+    return stock_report
+
+def get_rss_content():
+    """读取 feeds.txt 并获取 RSS 内容"""
+    print("Fetching RSS feeds...")
+    rss_summary = ""
+    if not os.path.exists("feeds.txt"):
+        return ""
+        
+    with open("feeds.txt", "r", encoding="utf-8") as f:
+        urls = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+    
+    for url in urls[:10]: # 限制前10个源防止内容过长
+        feed = feedparser.parse(url)
+        for entry in feed.entries[:3]: # 每个源取前3条
+            rss_summary += f"来源:{feed.feed.get('title', '未知')} | 标题:{entry.title}\n"
+    return rss_summary
+
+def ai_analyze(stock_info, rss_info):
+    """DeepSeek 综合分析"""
     prompt = f"""
-   你是一个资深商业与科技主编。请对以下原始 RSS 数据进行【二轮筛选】并整理。
-
-	 1. 筛选标准：
-    - **优先保留**：AI 技术新突破、全球金融市场重大波动、生产力工具更新、针对儿童/教育行业的商业新闻。
-    - **剔除**：纯粹的娱乐八卦、无实质内容的短讯、重复的头条报道。
-    - **总量控制**：从原始数据中精选出最值得阅读的4大类： 财经与市场、时政与综合、科技与产品、影视与娱乐，每一类下的新闻总量限制在10条以内。
-
-	2. 任务要求：
-    - 翻译与总结：将标题翻译成中文，摘要需包含“该新闻为何重要”的逻辑点，每条不超过200字。
-    - 严格排版：直接输出 HTML 格式。
-
-    原始数据：
-    {raw_text}
+    你是一个资深投资经理。请根据以下两部分数据撰写一份内参：
+    
+    1. 【重点标的追踪】：
+    {stock_info}
+    (要求：对比基准价分析风险与机会，给出犀利点评)
+    
+    2. 【全球宏观动态】：
+    {rss_info}
+    (要求：精选重要新闻进行翻译总结，分析对大盘或相关赛道的影响)
+    
+    请直接输出 HTML 格式。重点标的使用蓝色卡片样式，宏观动态使用列表样式。
     """
-
-    try:
-        response = requests.post(
-            "https://api.deepseek.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {deepseek_key}", "Content-Type": "application/json"},
-            json={
-                "model": "deepseek-chat",
-                "messages": [
-                    {"role": "system", "content": "你是一个只会输出 HTML 格式正文的助手。"},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.3
-            },
-            timeout=180
-        )
-        res_json = response.json()
-        return res_json['choices'][0]['message']['content'].replace('```html', '').replace('```', '')
-    except Exception as e:
-        print(f"DeepSeek 报错: {e}")
-        return f"<p>AI 整理失败，请检查 API Key 或网络。错误详情: {e}</p>"
-
-def fetch_data(feeds):
-    now = datetime.now(timezone.utc)
-    raw_text = ""
-    valid_count = 0
-
-    for url in feeds:
-        try:
-            feed = feedparser.parse(url)
-            for entry in feed.entries:
-                pub_parsed = getattr(entry, 'published_parsed', None) or getattr(entry, 'updated_parsed', None)
-                if pub_parsed:
-                    pub_date = datetime(*pub_parsed[:6], tzinfo=timezone.utc)
-                    if (now - pub_date) < timedelta(days=3):
-                        title = entry.title
-                        # 过滤掉几乎没有内容的摘要
-                        summary = entry.get('summary', '')
-                        if len(summary) < 20: summary = "（查看原文了解详情）"
-                        
-                        raw_text += f"Source: {feed.feed.get('title', 'News')}\nTitle: {title}\nLink: {entry.link}\nSummary: {summary}\n---\n"
-                        valid_count += 1
-        except Exception as e:
-            print(f"抓取失败 {url}: {e}")
-            
-    return raw_text, valid_count
+    
+    response = requests.post(
+        "https://api.deepseek.com/v1/chat/completions",
+        headers={"Authorization": f"Bearer {deepseek_key}"},
+        json={
+            "model": "deepseek-chat",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.3
+        }
+    )
+    return response.json()['choices'][0]['message']['content'].replace('```html', '').replace('```', '')
 
 def main():
-    print("🚀 开始执行 AI 汉化简报任务...")
+    stock_info = get_stock_data()
+    rss_info = get_rss_content()
     
-    if not all([resend.api_key, receiver_email, deepseek_key]):
-        print("❌ 错误: 环境变量 (RESEND/RECEIVER/DEEPSEEK) 配置不全")
-        return
-
-    # 读取源
-    feeds = []
-    if os.path.exists("feeds.txt"):
-        with open("feeds.txt", "r") as f:
-            feeds = [l.strip() for l in f if l.strip() and not l.startswith("#")]
-
-    raw_data, count = fetch_data(feeds)
+    final_content = ai_analyze(stock_info, rss_info)
     
-    if count > 0:
-        # 让 AI 处理内容
-        formatted_content = ai_process_content(raw_data)
-        
-        # 组装最终邮件
-        full_html = f"""
-        <div style="background-color: #f9f9f9; padding: 20px; font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
-            <div style="max-width: 650px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-                <div style="text-align: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 20px; margin-bottom: 20px;">
-                    <h1 style="margin: 0; color: #333; font-size: 22px;">Rex's Daily Intelligence</h1>
-                    <p style="color: #999; font-size: 13px;">{datetime.now().strftime('%Y-%m-%d')} | AI 深度整理版</p>
-                </div>
-                {formatted_content}
-                <div style="text-align: center; margin-top: 40px; color: #ccc; font-size: 11px; border-top: 1px solid #f0f0f0; padding-top: 20px;">
-                    由 DeepSeek V3 驱动 | Rex 的自动化工作流
-                </div>
-            </div>
-        </div>
-        """
-        
-        try:
-            resend.Emails.send({
-                "from": "Newsletter <onboarding@resend.dev>",
-                "to": [receiver_email],
-                "subject": f"今日深度简报：{count} 条资讯 AI 总结",
-                "html": full_html
-            })
-            print(f"✅ 成功！已发送 {count} 条资讯的总结。")
-        except Exception as e:
-            print(f"邮件发送失败: {e}")
-    else:
-        print("今日无新资讯更新。")
+    # 发送邮件
+    resend.Emails.send({
+        "from": "StockIntelligence <onboarding@resend.dev>",
+        "to": [receiver_email],
+        "subject": f"【投研内参】{datetime.now().strftime('%m-%d')} 特定标的+宏观综合版",
+        "html": f"<div style='background:#f9f9f9; padding:20px;'>{final_content}</div>"
+    })
+    print("Done!")
 
 if __name__ == "__main__":
     main()
