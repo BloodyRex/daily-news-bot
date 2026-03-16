@@ -4,6 +4,7 @@ import pandas as pd
 import feedparser
 import resend
 import requests
+import time
 from datetime import datetime, timedelta
 
 # 1. 基础配置
@@ -11,7 +12,7 @@ resend.api_key = os.environ.get("RESEND_API_KEY")
 receiver_email = os.environ.get("RECEIVER_EMAIL")
 deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
 
-# 【持仓配置区】已更新您的最新成本
+# 已更新您的最新成本位
 TARGET_STOCKS = {
     "603966": {"name": "法兰泰克", "cost": 13.33},
     "002475": {"name": "立讯精密", "cost": 55.03},
@@ -20,102 +21,102 @@ TARGET_STOCKS = {
 }
 
 def get_technical_analysis(code):
-    """提取行情数据并自动寻找区间关键点位"""
-    try:
-        # 获取近60个交易日的数据
-        df = ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq").tail(60)
-        if len(df) < 20: return None
-        
-        curr_price = df.iloc[-1]['收盘']
-        # 计算 60 日区间最高（压力位）与最低（支撑位）
-        high_60 = df['最高'].max()
-        low_60 = df['最低'].min()
-        
-        # 均线与指标
-        ma5 = df['收盘'].rolling(5).mean().iloc[-1]
-        ma20 = df['收盘'].rolling(20).mean().iloc[-1]
-        
-        delta = df['收盘'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=6).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=6).mean()
-        last_loss = loss.iloc[-1]
-        rsi6 = 100 if last_loss == 0 else 100 - (100 / (1 + (gain.iloc[-1] / last_loss)))
-        
-        trend = "📈 多头排列" if ma5 > ma20 else "📉 趋势走弱"
-        strength = "🔥 超买" if rsi6 > 80 else ("❄️ 超跌" if rsi6 < 20 else "⚖️ 中性")
-        
-        return {
-            "curr": curr_price,
-            "ma5": round(ma5, 2),
-            "ma20": round(ma20, 2),
-            "rsi6": round(rsi6, 2),
-            "high_60": high_60,
-            "low_60": low_60,
-            "trend_desc": f"{trend} ({strength})"
-        }
-    except:
-        return None
+    """提取行情并计算区间点位，增加重试逻辑"""
+    for _ in range(3): # 最多尝试3次
+        try:
+            df = ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq").tail(60)
+            if df.empty or len(df) < 10: continue
+            
+            curr_price = df.iloc[-1]['收盘']
+            high_60 = df['最高'].max()
+            low_60 = df['最低'].min()
+            ma5 = df['收盘'].rolling(5).mean().iloc[-1]
+            ma20 = df['收盘'].rolling(20).mean().iloc[-1]
+            
+            # RSI 计算
+            delta = df['收盘'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=6).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=6).mean()
+            last_loss = loss.iloc[-1]
+            rsi6 = 100 if last_loss == 0 else 100 - (100 / (1 + (gain.iloc[-1] / last_loss)))
+            
+            trend = "📈 多头" if ma5 > ma20 else "📉 走弱"
+            strength = "🔥 高位" if rsi6 > 80 else ("❄️ 低位" if rsi6 < 20 else "⚖️ 中性")
+            
+            return {
+                "curr": curr_price, "ma5": round(ma5, 2), "ma20": round(ma20, 2),
+                "rsi6": round(rsi6, 2), "high_60": high_60, "low_60": low_60,
+                "trend_desc": f"{trend} ({strength})"
+            }
+        except:
+            time.sleep(2)
+    return None
 
 def get_stock_intel():
-    """整合持仓数据与自动点位信息"""
+    """整合持仓数据"""
     report = ""
+    stock_found = False
     try:
+        # 尝试获取全市场快照
         df_spot = ak.stock_zh_a_spot_em()
+        
         for code, info in TARGET_STOCKS.items():
-            # 过滤个股实时行情
             match_row = df_spot[df_spot['代码'] == code]
-            if match_row.empty: continue
-            
-            row = match_row.iloc[0]
             tech = get_technical_analysis(code)
             
-            # 获取最近48小时新闻
-            df_news = ak.stock_news_em(symbol=code)
-            df_news['发布时间'] = pd.to_datetime(df_news['发布时间'])
-            recent = df_news[df_news['发布时间'] >= (datetime.now() - timedelta(hours=48))]
-            news_str = "\n".join([f"- {r['新闻标题']}" for _, r in recent.iterrows()])
-            
+            # 抓取个股新闻
+            try:
+                df_news = ak.stock_news_em(symbol=code)
+                df_news['发布时间'] = pd.to_datetime(df_news['发布时间'])
+                recent = df_news[df_news['发布时间'] >= (datetime.now() - timedelta(hours=48))]
+                news_str = "\n".join([f"- {r['新闻标题']}" for _, r in recent.iterrows()])
+            except:
+                news_str = "新闻接口连接受限"
+
             if tech:
+                stock_found = True
                 report += f"【{info['name']} ({code})】\n" \
                           f"我的成本: {info['cost']} | 当前价格: {tech['curr']}\n" \
                           f"技术面: {tech['trend_desc']}, RSI6: {tech['rsi6']}\n" \
-                          f"支撑区(60日低): {tech['low_60']} | 压力区(60日高): {tech['high_60']}\n" \
-                          f"核心公告与新闻:\n{news_str if news_str else '暂无重要公告'}\n\n"
+                          f"60日参考: 支撑位 {tech['low_60']} / 压力位 {tech['high_60']}\n" \
+                          f"最新新闻:\n{news_str if news_str else '暂无公告'}\n\n"
     except Exception as e:
-        report = f"持仓分析模块抓取异常: {str(e)}"
+        print(f"数据抓取严重异常: {e}")
+
+    if not stock_found:
+        return "ERROR: 持仓数据抓取完全失败，请检查网络或Akshare版本。"
     return report
 
 def get_rss_content():
+    """抓取RSS"""
     rss_summary = ""
-    if not os.path.exists("feeds.txt"): return "feeds.txt 缺失"
+    if not os.path.exists("feeds.txt"): return "feeds.txt missing"
     try:
         with open("feeds.txt", "r", encoding="utf-8") as f:
             urls = [line.strip() for line in f if line.strip() and not line.startswith("#")]
-        for url in urls[:15]:
+        for url in urls[:10]:
             feed = feedparser.parse(url)
             for entry in feed.entries[:3]:
-                rss_summary += f"来源:{feed.feed.get('title','')} | 标题:{entry.title} | 内容:{entry.get('summary', entry.get('description', ''))[:200]}\n"
+                rss_summary += f"来源:{feed.feed.get('title','')} | 标题:{entry.title}\n"
     except:
-        rss_summary = "RSS 数据流异常"
+        rss_summary = "RSS获取受阻"
     return rss_summary
 
 def ai_analyze(stock_intel, rss_info):
-    if not deepseek_key: return "DeepSeek Key 缺失"
-    prompt = f"""
-    你是一个资深投资组合策略师。请根据以下持仓详情和市场数据，直接撰写一份“全屏宽版”投研复盘邮件。
+    if not deepseek_key: return "AI Key Missing"
     
-    一、我的持仓诊断（重点）：
+    # 如果数据抓取失败，注入警告但强制AI根据已知成本分析
+    prompt = f"""
+    你是一个资深投资组合专家。
+    已知我的持仓成本：法兰泰克 13.33, 立讯精密 55.03, 共进股份 12.08, 红相股份 15.45。
+    当前抓取到的实时数据如下：
     {stock_intel}
-    【分析指令】：
-    1. 针对每只股票，直接对比我的“持仓成本”与“当前价”。如果是深度亏损标的，请分析最新新闻和支撑位，给出【补仓/减仓/锁仓】的具体建议。
-    2. 利用 60 日支撑和压力位，给出明确的止盈止损预期。
-    3. 评价当前技术面趋势，提示短期风险。
-
-    二、宏观资讯分析：
-    {rss_info}
-    【要求】：按💰财经、🌍时政、💻科技分级。每条信息必须给出“中文标题”和“核心内涵总结”。
-
-    规范：全屏显示，去掉所有边框和边距。标题用蓝色，重要建议使用加粗 HTML。直接输出 HTML 内容。
+    
+    【任务】：
+    1. 若实时价缺失，请明确提示并基于成本位进行策略推演。
+    2. 针对红相股份、共进股份这种深套标的，给出专业的“止损/补仓/锁仓”逻辑。
+    3. 全屏宽版排版，严禁使用Markdown代码块，直接输出HTML。
+    4. 资讯汇总按💰财经、🌍时政、💻科技分类，并附带核心逻辑。
     """
     try:
         resp = requests.post(
@@ -126,28 +127,25 @@ def ai_analyze(stock_intel, rss_info):
         )
         return resp.json()['choices'][0]['message']['content'].replace('```html', '').replace('```', '')
     except:
-        return "AI 分析器暂时无法响应，请稍后检查网络。"
+        return "AI 复盘生成失败，请核查 DeepSeek 余额或网络。"
 
 def main():
-    if not all([resend.api_key, receiver_email, deepseek_key]):
-        return print("❌ 缺失环境变量配置")
-
+    print("🚀 正在尝试连接金融数据源...")
     stock_intel = get_stock_intel()
     rss_info = get_rss_content()
+    
+    # 无论实时数据是否获取成功，都让AI介入生成分析
     final_content = ai_analyze(stock_intel, rss_info)
     
     html_output = f"""
-    <div style="margin: 0; padding: 0; width: 100%; font-family: -apple-system, system-ui, sans-serif; background-color: #ffffff;">
-        <div style="width: 100%; border-top: 8px solid #0052D9; padding: 25px 0;">
-            <div style="padding: 0 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: baseline;">
-                <h1 style="font-size: 28px; color: #111; margin: 0;">Alpha 持仓深度诊断</h1>
-                <span style="font-size: 14px; color: #999;">{datetime.now().strftime('%Y-%m-%d %H:%M')}</span>
+    <div style="margin:0; padding:0; width:100%; font-family:sans-serif; background-color:#ffffff;">
+        <div style="width:100%; border-top:8px solid #0052D9; padding:25px 0;">
+            <div style="padding:0 20px; display:flex; justify-content:space-between; align-items:baseline;">
+                <h1 style="font-size:28px; color:#111; margin:0;">Alpha 持仓深度诊断</h1>
+                <span style="color:#999;">{datetime.now().strftime('%m-%d %H:%M')}</span>
             </div>
-            <div style="padding: 0 20px; line-height: 1.8; color: #222;">
+            <div style="padding:0 20px; line-height:1.8; color:#222;">
                 {final_content}
-            </div>
-            <div style="margin-top: 60px; padding: 40px 20px; border-top: 1px solid #f0f0f0; color: #bbb; font-size: 11px;">
-                自动化投研报告 · 基于 Akshare 数据与 DeepSeek 决策引擎
             </div>
         </div>
     </div>
@@ -157,12 +155,12 @@ def main():
         resend.Emails.send({
             "from": "Portfolio_Insight <onboarding@resend.dev>",
             "to": [receiver_email],
-            "subject": f"【持仓内参】{datetime.now().strftime('%m-%d')} 复盘与操作建议",
+            "subject": f"【持仓内参】{datetime.now().strftime('%m-%d')} 深度复盘",
             "html": html_output
         })
-        print("✅ 深度诊断研报已发送。")
+        print("✅ 研报已投递。")
     except Exception as e:
-        print(f"❌ 邮件发送失败: {e}")
+        print(f"❌ 邮件模块异常: {e}")
 
 if __name__ == "__main__":
     main()
