@@ -2,11 +2,11 @@ name: Daily News Email
 
 on:
   schedule:
-    # 每天北京时间 18:00 (UTC 10:00)
-    - cron: '0 10 * * *' 
+    # 每天北京时间 19:00 (UTC 11:00) 运行
+    - cron: '0 11 * * *' 
   workflow_dispatch:
 
-# 核心：通过环境变量强制使用 Node.js 24 运行所有 Actions
+# 核心修复：强制所有的 JavaScript Action 在 Node.js 24 下运行，消除弃用警告
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4 # 虽然内部声明 Node 20，但会被 env 强制提升
 
       - name: Set up Python
         uses: actions/setup-python@v5
